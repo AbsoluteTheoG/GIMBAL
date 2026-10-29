@@ -33,6 +33,7 @@ Tools like Joy2Key or Joystick Gremlin can do this too, but they take a while to
 - ⌨️ **Keyboard and mouse output**: any key, mouse buttons, mouse wheel, and mouse movement from an axis. Keys are sent as scancodes, so games that read raw input accept them.
 - 🎮 **Virtual Xbox 360 controller**: map axes to the analog sticks and triggers and buttons to A/B/X/Y, bumpers or the D-pad. The game sees a real gamepad.
 - 🎚️ **Per-binding options**: invert, deadzone, throttle (full-range) axes, trigger threshold for using an axis as a button, toggle mode, mouse speed.
+- 👀 **Live gamepad view**: an Xbox controller on the main screen shows exactly what the game receives (buttons, sticks, triggers) and which keys are being sent. Great for checking a binding, or for showing your inputs on stream.
 - 🖼️ **HOTAS view**: load a picture of your HOTAS, drop labels on each physical button, and see at a glance what everything does. Labels light up when you press the control. Keep it on a second screen while you play.
 - 💾 **Profiles**: one JSON file per game, saved automatically.
 - 🌓 **Light / dark theme** (or follow Windows) and **English / French** interface.
@@ -78,7 +79,7 @@ Then double-click **`gimbal.pyw`**. The dependencies go into a `libs` folder nex
 3. Click **Detect**, then press the button or move the axis you want to use.
 4. Choose an **Output type** and a **Target**: a key (click *Capture a key* and press it), a gamepad button or axis, or mouse movement.
 5. Click **OK**. Your binding is active right away and saved in the profile.
-6. Launch your game. While a binding is in use, its row turns green.
+6. Launch your game. While a binding is in use, its row turns green, and the **virtual gamepad** panel on the right shows what the game receives.
 
 Use the big **ENABLED / DISABLED** button in the header to pause Gimbal at any time. Pausing releases every key and unplugs the virtual controller.
 
@@ -218,4 +219,4 @@ Bug reports, ideas and pull requests are welcome! Please open an [issue](https:/
 
 Gimbal is released under the [MIT License](LICENSE).
 
-It relies on these projects: [pygame-ce](https://github.com/pygame-community/pygame-ce) (LGPL-2.1), [vgamepad](https://github.com/yannbouteiller/vgamepad) (MIT), [ViGEmBus](https://github.com/nefarius/ViGEmBus) (BSD-3-Clause), [Pillow](https://github.com/python-pillow/Pillow) (MIT-CMU) and [Sun Valley ttk theme](https://github.com/rdbende/Sun-Valley-ttk-theme) (MIT).
+It relies on these projects: [pygame-ce](https://github.com/pygame-community/pygame-ce) (LGPL-2.1), [vgamepad](https://github.com/yannbouteiller/vgamepad) (MIT), [ViGEmBus](https://github.com/nefarius/ViGEmBus) (BSD-3-Clause), [Pillow](https://github.com/python-pillow/Pillow) (MIT-CMU) and [Sun Valley ttk theme](https://github.com/rdbende/Sun-Valley-ttk-theme) (MIT). The virtual gamepad images are derived from the Xbox One template of [Gamepad Viewer](https://github.com/e7d/gamepad-viewer) by Michaël "e7d" Ferrand (MIT, see [`assets/gamepad/LICENSE`](assets/gamepad/LICENSE)).

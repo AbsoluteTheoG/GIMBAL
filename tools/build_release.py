@@ -75,6 +75,8 @@ def main():
         "--icon", str(icon), "--version-file", str(version_file),
         "--collect-data", "sv_ttk",           # Sun Valley theme (.tcl + images)
         "--collect-binaries", "vgamepad",     # ViGEmClient.dll
+        "--exclude-module", "numpy",          # optionnel pour pygame/Pillow, inutile ici (~9 Mo)
+        "--exclude-module", "pymupdf",        # outil de make_gamepad_assets.py, pas de l'appli
         "--distpath", str(work / "dist"), "--workpath", str(work / "pyinstaller"), "--specpath", str(work),
     ], check=True)
 
@@ -83,6 +85,7 @@ def main():
         if (ROOT / name).exists():
             shutil.copy2(ROOT / name, app / name)
     shutil.copytree(ROOT / "profiles" / "examples", app / "profiles" / "examples")
+    shutil.copytree(ROOT / "assets", app / "assets")  # images de la manette virtuelle
 
     out.mkdir(parents=True, exist_ok=True)
     zip_path = out / f"{RELEASE_NAME}.zip"

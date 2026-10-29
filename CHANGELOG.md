@@ -2,6 +2,15 @@
 
 All notable changes to Gimbal are listed here. Versions follow [Semantic Versioning](https://semver.org/).
 
+## [1.1.0] - 2026-10-29
+
+### Added
+- **Virtual gamepad panel** on the main screen: a live Xbox controller shows exactly what Gimbal sends to the game (buttons, sticks, triggers), plus the keyboard and mouse keys currently sent. Controller art from [Gamepad Viewer](https://github.com/e7d/gamepad-viewer) (MIT).
+- `tools/make_gamepad_assets.py` to regenerate the controller images.
+
+### Changed
+- The main window opens a bit wider to make room for the gamepad panel.
+
 ## [1.0.0] - 2026-10-29
 
 First public release.
@@ -13,4 +22,5 @@ First public release.
 - Light / dark / system theme, English and French interface.
 - Standalone Windows build (`Gimbal.exe`), no Python required.
 
+[1.1.0]: https://github.com/AbsoluteTheoG/GIMBAL/releases/tag/v1.1.0
 [1.0.0]: https://github.com/AbsoluteTheoG/GIMBAL/releases/tag/v1.0.0

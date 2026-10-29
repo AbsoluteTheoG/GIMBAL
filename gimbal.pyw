@@ -20,7 +20,7 @@ from pathlib import Path
 from tkinter import filedialog, messagebox, simpledialog, ttk
 
 APP_NAME = "Gimbal"  # aussi le titre de fenêtre cherché par focus_running_instance
-APP_VERSION = "1.0.0"
+APP_VERSION = "1.1.0"
 # Version .exe (PyInstaller) : profils et réglages à côté de Gimbal.exe, pas dans le dossier temporaire.
 APP_DIR = Path(sys.executable).parent if getattr(sys, "frozen", False) else Path(__file__).resolve().parent
 LOG_FILE = APP_DIR / "gimbal_error.log"
@@ -83,6 +83,8 @@ STRINGS = {
         "no_device": "Aucun joystick détecté. Branche ton HOTAS.", "buttons": "Boutons",
         "settings": "Réglages", "theme": "Thème", "theme_system": "Système", "theme_light": "Clair",
         "theme_dark": "Sombre", "language": "Langue", "binds_count": "{n} binds",
+        "virtual_pad": "Manette virtuelle", "pad_keys": "Clavier / souris envoyés", "pad_paused": "Mapping en pause",
+        "pad_unused": "Aucun bind manette dans ce profil : la manette virtuelle n'est pas branchée.",
     },
     "en": {
         "out_key": "Keyboard / mouse key", "out_pad_button": "Gamepad button",
@@ -138,6 +140,8 @@ STRINGS = {
         "no_device": "No joystick detected. Plug in your HOTAS.", "buttons": "Buttons",
         "settings": "Settings", "theme": "Theme", "theme_system": "System", "theme_light": "Light",
         "theme_dark": "Dark", "language": "Language", "binds_count": "{n} bindings",
+        "virtual_pad": "Virtual gamepad", "pad_keys": "Keyboard / mouse sent", "pad_paused": "Mapping paused",
+        "pad_unused": "No gamepad bindings in this profile: the virtual controller isn't plugged in.",
     },
 }
 LANGUAGES = {"fr": "Français", "en": "English"}
@@ -175,7 +179,7 @@ sys.excepthook = lambda exc, val, tb: report_error("".join(traceback.format_exce
 # ne dépend pas des paquets installés pour l'utilisateur et reste autonome si on la déplace.
 sys.path.insert(0, str(APP_DIR / "libs"))
 
-from PIL import Image, ImageDraw, ImageTk  # noqa: E402
+from PIL import Image, ImageDraw, ImageOps, ImageTk  # noqa: E402
 
 os.environ["PYGAME_HIDE_SUPPORT_PROMPT"] = "1"
 # Indispensable : sans ça SDL ignore le joystick dès qu'une autre fenêtre (le jeu) a le focus.
@@ -479,6 +483,9 @@ def analog_value(b, st):
     return math.copysign((abs(v) - dz) / (1 - dz), v)
 
 
+IDLE_OUTPUT = (frozenset(), dict.fromkeys(PAD_AXES, 0.0), frozenset())  # boutons manette, axes, touches
+
+
 # --- Moteur -----------------------------------------------------------------------
 
 class Engine(threading.Thread):
@@ -489,6 +496,7 @@ class Engine(threading.Thread):
         self.enabled = True
         self.snapshot = {}          # nom du périphérique -> {"axes", "buttons", "hats"}
         self.active = frozenset()   # index des binds actuellement actifs (pour l'affichage)
+        self.output = IDLE_OUTPUT   # ce qui est envoyé au jeu, pour l'onglet Manette
         self.status = ("starting",)  # (code, *arguments), traduit par l'interface
         self._lock = threading.Lock()
         self._pending = None
@@ -546,6 +554,7 @@ class Engine(threading.Thread):
             elif was_enabled:
                 self._release_all(close_pad=True)
                 self.active = frozenset()
+                self.output = IDLE_OUTPUT
                 self.status = ("paused",)
             was_enabled = self.enabled
             time.sleep(1 / POLL_HZ)
@@ -612,6 +621,10 @@ class Engine(threading.Thread):
         if dx or dy:
             send_mouse_move(dx, dy)
 
+        shown = {a: max(-1.0, min(1.0, v)) for a, v in axes.items()}
+        for t in ("LT", "RT"):
+            shown[t] = 1.0 if t in pad_buttons else max(0.0, shown[t])
+        self.output = (frozenset(pad_buttons), shown, frozenset(keys))
         self._update_pad(pad_buttons, axes)
 
     def _update_pad(self, buttons, axes):
@@ -1251,14 +1264,128 @@ class HotasView(ttk.Frame):
         self.app.save_profile()
 
 
+class GamepadPanel(ttk.Frame):
+    """Manette Xbox en images (modèle Xbox One de Gamepad Viewer) : ce que Gimbal envoie au jeu, en direct.
+
+    Les sprites (assets/gamepad, rendus à 2×) sont posés aux positions du CSS d'origine, en px CSS
+    sur un fond de 750 × 630, puis l'ensemble est mis à l'échelle de la colonne.
+    """
+
+    ASSETS = APP_DIR / "assets" / "gamepad"
+    BASE_W = 750
+    FACES = {"A": (540, 303), "B": (590, 253), "X": (490, 253), "Y": (540, 202)}
+    DPAD = {"DPAD_UP": (261, 346), "DPAD_DOWN": (261, 400), "DPAD_LEFT": (223, 384), "DPAD_RIGHT": (277, 384)}
+    STICKS = (((144, 239), "LX", "LY", "LS"), ((432, 352), "RX", "RY", "RS"))
+    STICK_TRAVEL = 25  # px CSS à fond, comme Gamepad Viewer
+
+    def __init__(self, parent, app):
+        super().__init__(parent)
+        self.app = app
+        self._state = None
+        self._sprites, self._width = {}, 0
+        try:
+            self._source = {p.stem: Image.open(p).convert("RGBA") for p in self.ASSETS.glob("*.png")}
+        except OSError:
+            self._source = {}
+        ttk.Label(self, text=tr("virtual_pad").upper(), style="Section.TLabel").pack(anchor="w")
+        self.canvas = tk.Canvas(self, highlightthickness=0,
+                                background=ttk.Style(app.root).lookup("TFrame", "background"))
+        self.canvas.pack(fill="both", expand=True, pady=(6, 0))
+        self.canvas.bind("<Configure>", lambda e: self._draw())
+
+    def update_state(self, output, paused, uses_pad):
+        state = (output, paused, uses_pad)
+        if state != self._state:
+            self._state = state
+            self._draw()
+
+    def _scaled(self, width):
+        """Sprites mis à l'échelle une seule fois par largeur de colonne."""
+        if width != self._width:
+            f = width / (2 * self.BASE_W)  # sprites rendus à 2×
+            self._sprites = {name: img.resize((max(1, round(img.width * f)), max(1, round(img.height * f))),
+                                              Image.LANCZOS) for name, img in self._source.items()}
+            for name in ("trigger", "bumper"):
+                self._sprites[name + "_r"] = ImageOps.mirror(self._sprites[name])
+            self._width = width
+        return self._sprites
+
+    def _compose(self, width, buttons, axes):
+        sp = self._scaled(width)
+        k = width / self.BASE_W
+        img = sp["base_black" if self.app.dark else "base_white"].copy()
+
+        def put(name, x, y):
+            img.alpha_composite(sp[name], (round(x * k), round(y * k)))
+
+        for name, x, v in (("trigger", 151, axes["LT"]), ("trigger_r", 510, axes["RT"])):
+            if v > 0.01:  # se remplit par le bas
+                t = sp[name]
+                cut = round(t.height * (1 - v))
+                img.alpha_composite(t.crop((0, cut, t.width, t.height)), (round(x * k), cut))
+        if "LB" in buttons:
+            put("bumper", 107, 129)
+        if "RB" in buttons:
+            put("bumper_r", 473, 129)
+        if "BACK" in buttons:
+            put("back", 306, 264)
+        if "START" in buttons:
+            put("start", 414, 264)
+        for face, (x, y) in self.FACES.items():
+            put(f"button_{face.lower()}" + ("_pressed" if face in buttons else ""), x, y)
+        for (x, y), ax, ay, click in self.STICKS:
+            put("stick_pressed" if click in buttons else "stick",
+                x + axes[ax] * self.STICK_TRAVEL, y - axes[ay] * self.STICK_TRAVEL)
+        for name, (x, y) in self.DPAD.items():
+            if name in buttons:
+                put(name.lower(), x, y)
+        return img
+
+    def _draw(self):
+        c, pal, s = self.canvas, self.app.palette, self.app.scale
+        c.delete("all")
+        cw = c.winfo_width()
+        if cw < 40 or self._state is None:
+            return
+        (buttons, axes, keys), paused, uses_pad = self._state
+        y = 0
+        if self._source:
+            self._photo = ImageTk.PhotoImage(self._compose(cw, buttons, axes))
+            c.create_image(cw / 2, 0, anchor="n", image=self._photo)
+            y = self._photo.height() + 10 * s
+
+        # Touches clavier / souris envoyées, en pastilles qui reviennent à la ligne
+        c.create_text(0, y, anchor="nw", text=tr("pad_keys"), fill=pal["muted"], font=(FONT, 9))
+        y += 22 * s
+        x = 0
+        if not keys:
+            c.create_text(0, y, anchor="nw", text="—", fill=pal["muted"])
+        for name in sorted(keys):
+            t = c.create_text(x + 8 * s, y + 9 * s, anchor="w", text=target_label("key", name),
+                              fill=pal["chip_text"], font=(FONT, 9, "bold"))
+            tb = c.bbox(t)
+            if tb[2] + 8 * s > cw and x > 0:  # retour à la ligne
+                x, y = 0, y + 26 * s
+                c.coords(t, x + 8 * s, y + 9 * s)
+                tb = c.bbox(t)
+            c.create_line(tb[0], y + 9 * s, tb[2], y + 9 * s, fill=pal["accent"], width=18 * s, capstyle="round")
+            c.tag_raise(t)
+            x = tb[2] + 18 * s
+        y += 32 * s
+
+        note = tr("pad_paused") if paused else None if uses_pad else tr("pad_unused")
+        if note:
+            c.create_text(0, y, anchor="nw", text=note, fill=pal["muted"], font=(FONT, 9), width=cw)
+
+
 class App:
     def __init__(self, root):
         global LANG
         self.root = root
         self.scale = root.winfo_fpixels("1i") / 96
         root.title(APP_NAME)
-        root.geometry(f"{int(1100 * self.scale)}x{int(720 * self.scale)}")
-        root.minsize(int(860 * self.scale), int(520 * self.scale))
+        root.geometry(f"{int(1320 * self.scale)}x{int(760 * self.scale)}")
+        root.minsize(int(1060 * self.scale), int(560 * self.scale))
         self.engine = Engine()
         self.engine.start()
         self.settings = load_json(SETTINGS_FILE, {})
@@ -1343,8 +1470,14 @@ class App:
         ttk.Label(status, textvariable=self.count_var, style="Muted.TLabel").pack(side="right")
         ttk.Separator(self.root).pack(side="bottom", fill="x")
 
-        body = ttk.Frame(self.root, padding=(18, 12, 18, 10))
-        body.pack(fill="both", expand=True)
+        outer = ttk.Frame(self.root, padding=(18, 12, 18, 10))
+        outer.pack(fill="both", expand=True)
+        self.pad_view = GamepadPanel(outer, self)
+        self.pad_view.configure(width=int(330 * s))
+        self.pad_view.pack_propagate(False)  # largeur fixe, la manette s'y adapte
+        self.pad_view.pack(side="right", fill="y", padx=(18, 0))
+        body = ttk.Frame(outer)
+        body.pack(side="left", fill="both", expand=True)
         ttk.Label(body, text=tr("live_inputs").upper(), style="Section.TLabel").pack(anchor="w")
         self.monitor = tk.Canvas(body, height=40, highlightthickness=0,
                                  background=ttk.Style(self.root).lookup("TFrame", "background"))
@@ -1549,6 +1682,8 @@ class App:
         if changed:
             for i, b in enumerate(self.bindings):
                 self.tree.item(str(i), tags=self._row_tags(i, b))
+        uses_pad = any(b["out"]["type"] in ("pad_button", "pad_axis") for b in self.bindings)
+        self.pad_view.update_state(self.engine.output, not self.engine.enabled, uses_pad)
         code, *args = self.engine.status
         self.status_var.set(tr("status_" + code, msg=args[0]) if args else tr("status_" + code))
         ok = code in ("kb", "pad")

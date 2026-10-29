@@ -33,6 +33,7 @@ Joy2Key ou Joystick Gremlin savent aussi le faire, mais ils demandent un temps d
 - ⌨️ **Sortie clavier et souris** : n'importe quelle touche, les boutons et la molette de la souris, et le mouvement de la souris depuis un axe. Les touches sont envoyées en scancodes, donc les jeux qui lisent les entrées brutes les acceptent.
 - 🎮 **Manette Xbox 360 virtuelle** : axes vers les sticks analogiques et les gâchettes, boutons vers A/B/X/Y, les bumpers ou la croix. Le jeu voit une vraie manette.
 - 🎚️ **Options par bind** : inversion, zone morte, axe de manette des gaz (course complète), seuil pour utiliser un axe comme bouton, mode bascule, vitesse de la souris.
+- 👀 **Manette en direct** : une manette Xbox sur l'écran principal montre exactement ce que reçoit le jeu (boutons, sticks, gâchettes) et les touches envoyées. Pratique pour vérifier un bind, ou pour montrer tes commandes en stream.
 - 🖼️ **Vue HOTAS** : charge une image de ton HOTAS, pose une étiquette sur chaque bouton physique et vois d'un coup d'œil ce que fait chaque commande. Les étiquettes s'allument quand tu actionnes le contrôle. Laisse-la sur un deuxième écran pendant que tu joues.
 - 💾 **Profils** : un fichier JSON par jeu, sauvegardé automatiquement.
 - 🌓 **Thème clair / sombre** (ou celui de Windows) et interface en **français / anglais**.
@@ -78,7 +79,7 @@ Double-clique ensuite sur **`gimbal.pyw`**. Les dépendances s'installent dans u
 3. Clique sur **Détecter**, puis appuie sur le bouton ou bouge l'axe que tu veux utiliser.
 4. Choisis un **Type de sortie** et une **Cible** : une touche (clique sur *Capturer une touche* et appuie dessus), un bouton ou un axe de manette, ou le mouvement de la souris.
 5. Clique sur **OK**. Le bind est actif tout de suite et enregistré dans le profil.
-6. Lance ton jeu. Quand un bind est utilisé, sa ligne passe en vert.
+6. Lance ton jeu. Quand un bind est utilisé, sa ligne passe en vert, et la colonne **Manette virtuelle**, à droite, montre ce que reçoit le jeu.
 
 Le gros bouton **ACTIVÉ / DÉSACTIVÉ** de l'en-tête met Gimbal en pause à tout moment. La pause relâche toutes les touches et débranche la manette virtuelle.
 
@@ -218,4 +219,4 @@ Rapports de bugs, idées et pull requests sont les bienvenus ! Pour les gros cha
 
 Gimbal est distribué sous [licence MIT](LICENSE).
 
-Il s'appuie sur ces projets : [pygame-ce](https://github.com/pygame-community/pygame-ce) (LGPL-2.1), [vgamepad](https://github.com/yannbouteiller/vgamepad) (MIT), [ViGEmBus](https://github.com/nefarius/ViGEmBus) (BSD-3-Clause), [Pillow](https://github.com/python-pillow/Pillow) (MIT-CMU) et le [thème Sun Valley](https://github.com/rdbende/Sun-Valley-ttk-theme) (MIT).
+Il s'appuie sur ces projets : [pygame-ce](https://github.com/pygame-community/pygame-ce) (LGPL-2.1), [vgamepad](https://github.com/yannbouteiller/vgamepad) (MIT), [ViGEmBus](https://github.com/nefarius/ViGEmBus) (BSD-3-Clause), [Pillow](https://github.com/python-pillow/Pillow) (MIT-CMU) et le [thème Sun Valley](https://github.com/rdbende/Sun-Valley-ttk-theme) (MIT). Les images de la manette virtuelle sont tirées du modèle Xbox One de [Gamepad Viewer](https://github.com/e7d/gamepad-viewer), par Michaël « e7d » Ferrand (MIT, voir [`assets/gamepad/LICENSE`](assets/gamepad/LICENSE)).
