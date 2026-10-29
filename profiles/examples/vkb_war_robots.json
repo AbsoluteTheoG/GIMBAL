@@ -1,0 +1,152 @@
+{
+  "bindings": [
+    {
+      "src": {
+        "dev": "VKBsim Gladiator EVO L",
+        "type": "axis",
+        "idx": 0,
+        "dir": 1,
+        "centered": true
+      },
+      "out": {
+        "type": "pad_axis",
+        "target": "LX"
+      },
+      "invert": true,
+      "deadzone": 0.05
+    },
+    {
+      "src": {
+        "dev": "VKBsim Gladiator EVO L",
+        "type": "axis",
+        "idx": 1,
+        "dir": 1,
+        "centered": true
+      },
+      "out": {
+        "type": "pad_axis",
+        "target": "LY"
+      },
+      "invert": false,
+      "deadzone": 0.1
+    },
+    {
+      "src": {
+        "dev": "VKBsim Gladiator EVO R",
+        "type": "axis",
+        "idx": 0,
+        "dir": 1,
+        "centered": true
+      },
+      "out": {
+        "type": "pad_axis",
+        "target": "RX"
+      },
+      "invert": false,
+      "deadzone": 0.05
+    },
+    {
+      "src": {
+        "dev": "VKBsim Gladiator EVO R",
+        "type": "axis",
+        "idx": 1,
+        "dir": -1,
+        "centered": true
+      },
+      "out": {
+        "type": "pad_axis",
+        "target": "RY"
+      },
+      "invert": false,
+      "deadzone": 0.05
+    },
+    {
+      "src": {
+        "dev": "VKBsim Gladiator EVO R",
+        "type": "button",
+        "idx": 0
+      },
+      "out": {
+        "type": "pad_button",
+        "target": "RT"
+      },
+      "mode": "hold"
+    },
+    {
+      "src": {
+        "dev": "VKBsim Gladiator EVO R",
+        "type": "button",
+        "idx": 2
+      },
+      "out": {
+        "type": "pad_button",
+        "target": "A"
+      },
+      "mode": "hold"
+    },
+    {
+      "src": {
+        "dev": "VKBsim Gladiator EVO L",
+        "type": "button",
+        "idx": 0
+      },
+      "out": {
+        "type": "pad_button",
+        "target": "LT"
+      },
+      "mode": "hold"
+    },
+    {
+      "src": {
+        "dev": "VKBsim Gladiator EVO R",
+        "type": "button",
+        "idx": 8
+      },
+      "out": {
+        "type": "pad_button",
+        "target": "X"
+      },
+      "mode": "hold"
+    },
+    {
+      "src": {
+        "dev": "VKBsim Gladiator EVO R",
+        "type": "button",
+        "idx": 6
+      },
+      "out": {
+        "type": "pad_button",
+        "target": "Y"
+      },
+      "mode": "hold"
+    },
+    {
+      "src": {
+        "dev": "VKBsim Gladiator EVO R",
+        "type": "button",
+        "idx": 7
+      },
+      "out": {
+        "type": "pad_button",
+        "target": "B"
+      },
+      "mode": "hold"
+    },
+    {
+      "src": {
+        "dev": "VKBsim Gladiator EVO L",
+        "type": "button",
+        "idx": 2
+      },
+      "out": {
+        "type": "pad_button",
+        "target": "LB"
+      },
+      "mode": "hold"
+    }
+  ],
+  "layout": {
+    "image": null,
+    "labels": []
+  }
+}

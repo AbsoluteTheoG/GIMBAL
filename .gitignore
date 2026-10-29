@@ -1,0 +1,13 @@
+# Dependencies installed next to the app (pip install --target libs -r requirements.txt)
+libs/
+__pycache__/
+*.pyc
+
+# Per-user files created by Gimbal
+settings.json
+gimbal_error.log
+
+# Your own profiles and HOTAS pictures stay local; only the examples are shared
+profiles/*
+!profiles/examples/
+/*.png
