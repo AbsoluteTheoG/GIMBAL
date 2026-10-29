@@ -20,8 +20,9 @@ from pathlib import Path
 from tkinter import filedialog, messagebox, simpledialog, ttk
 
 APP_NAME = "Gimbal"  # aussi le titre de fenêtre cherché par focus_running_instance
-APP_VERSION = "1.0"
-APP_DIR = Path(__file__).resolve().parent
+APP_VERSION = "1.0.0"
+# Version .exe (PyInstaller) : profils et réglages à côté de Gimbal.exe, pas dans le dossier temporaire.
+APP_DIR = Path(sys.executable).parent if getattr(sys, "frozen", False) else Path(__file__).resolve().parent
 LOG_FILE = APP_DIR / "gimbal_error.log"
 
 

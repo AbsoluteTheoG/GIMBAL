@@ -48,35 +48,28 @@ Joy2Key ou Joystick Gremlin savent aussi le faire, mais ils demandent un temps d
 
 ## Installation
 
-### 1. Prérequis
+### Téléchargement (recommandé)
 
-- **Windows 10 ou 11**
-- **[Python 3.10 ou plus récent](https://www.python.org/downloads/windows/)**. Pendant l'installation, coche *« Add python.exe to PATH »*.
-- **[Pilote ViGEmBus](https://github.com/nefarius/ViGEmBus/releases)**, seulement si tu veux la manette Xbox virtuelle. Les sorties clavier et souris fonctionnent sans. Le projet ViGEmBus n'est plus maintenu, mais sa dernière version fonctionne toujours sous Windows 10 et 11.
+1. Va sur la **[dernière version](https://github.com/AbsoluteTheoG/GIMBAL/releases/latest)** et télécharge `Gimbal-vX.Y.Z-windows-x64.zip`.
+2. **Extrais** le zip dans un dossier où tu peux écrire, comme `Documents` ou `D:\Jeux\Gimbal`. Évite `Program Files`, car Gimbal enregistre ses profils à côté de l'exe.
+3. Double-clique sur **`Gimbal.exe`**. Pas besoin de Python.
+4. *Facultatif :* installe le **[pilote ViGEmBus](https://github.com/nefarius/ViGEmBus/releases)** si tu veux la manette Xbox virtuelle. Les sorties clavier et souris fonctionnent sans. Le projet ViGEmBus n'est plus maintenu, mais sa dernière version fonctionne toujours sous Windows 10 et 11.
 
-### 2. Télécharger Gimbal
+> **« Windows a protégé votre ordinateur » ?** Gimbal n'est pas signé numériquement (les certificats coûtent cher pour un projet gratuit), donc SmartScreen peut afficher un avertissement au premier lancement. Clique sur **Informations complémentaires → Exécuter quand même**. Tu préfères vérifier le code toi-même ? Lance-le depuis les sources, ci-dessous.
 
-Clique sur **Code → Download ZIP** en haut de cette page et extrais le dossier où tu veux, ou clone le dépôt :
+> **Astuce :** clic droit sur `Gimbal.exe` → *Envoyer vers → Bureau (créer un raccourci)* pour avoir une icône sur le bureau.
+
+### Lancer depuis les sources
+
+Il faut **Windows 10/11** et **[Python 3.10 ou plus récent](https://www.python.org/downloads/windows/)**. Pendant l'installation, coche *« Add python.exe to PATH »*.
 
 ```bash
 git clone https://github.com/AbsoluteTheoG/GIMBAL.git
-```
-
-### 3. Installer les dépendances
-
-Ouvre un terminal **dans le dossier de Gimbal** et lance :
-
-```bash
+cd GIMBAL
 py -m pip install --target libs -r requirements.txt
 ```
 
-Les dépendances s'installent dans un dossier `libs` à côté de l'appli. Gimbal reste ainsi autonome et ne touche pas à tes autres projets Python. Un simple `pip install -r requirements.txt` fonctionne aussi.
-
-### 4. Lancer
-
-Double-clique sur **`gimbal.pyw`**. C'est tout.
-
-> **Astuce :** clic droit sur `gimbal.pyw` → *Envoyer vers → Bureau (créer un raccourci)* pour avoir une icône sur le bureau.
+Double-clique ensuite sur **`gimbal.pyw`**. Les dépendances s'installent dans un dossier `libs` à côté de l'appli. Gimbal reste ainsi autonome et ne touche pas à tes autres projets Python. Un simple `pip install -r requirements.txt` fonctionne aussi.
 
 ## Prise en main
 
@@ -158,7 +151,7 @@ Les changements s'appliquent tout de suite, sans redémarrer.
 <details>
 <summary><b>Il ne se passe rien quand je double-clique sur <code>gimbal.pyw</code></b></summary>
 
-Cherche un fichier `gimbal_error.log` à côté de l'appli. Toute erreur au démarrage y est écrite et s'affiche aussi dans une boîte de dialogue. La cause la plus fréquente : des dépendances manquantes. Relance la commande d'installation de l'étape 3 dans le dossier de Gimbal. Si Gimbal tourne déjà, un nouveau double-clic ramène simplement sa fenêtre au premier plan.
+Cherche un fichier `gimbal_error.log` à côté de l'appli. Toute erreur au démarrage y est écrite et s'affiche aussi dans une boîte de dialogue. Si tu lances Gimbal depuis les sources, la cause la plus fréquente est une dépendance manquante : relance la commande `pip install` dans le dossier de Gimbal. Si Gimbal tourne déjà, un nouveau double-clic ramène simplement sa fenêtre au premier plan.
 </details>
 
 <details>
@@ -200,11 +193,22 @@ Toute l'appli tient dans un seul fichier Python, [`gimbal.pyw`](gimbal.pyw).
 GIMBAL/
 ├── gimbal.pyw            # l'appli
 ├── requirements.txt
+├── tools/
+│   └── build_release.py  # construit Gimbal.exe et le zip de release
 ├── profiles/
 │   └── examples/         # profils d'exemple partagés
 ├── docs/                 # logo et captures d'écran
 └── libs/                 # dépendances, créé par l'installation (pas dans git)
 ```
+
+### Construire le .exe
+
+```bash
+py -m pip install pyinstaller -r requirements.txt
+py tools/build_release.py
+```
+
+Le script crée `dist/Gimbal-vX.Y.Z-windows-x64.zip`, en prenant la version dans `APP_VERSION` de `gimbal.pyw`.
 
 ## Contribuer
 

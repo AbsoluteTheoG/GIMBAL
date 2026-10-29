@@ -3,6 +3,10 @@ libs/
 __pycache__/
 *.pyc
 
+# Release build output (tools/build_release.py)
+build/
+dist/
+
 # Per-user files created by Gimbal
 settings.json
 gimbal_error.log
