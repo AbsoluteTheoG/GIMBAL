@@ -51,7 +51,7 @@ Joy2Key ou Joystick Gremlin savent aussi le faire, mais ils demandent un temps d
 ### Téléchargement (recommandé)
 
 1. Va sur la **[dernière version](https://github.com/AbsoluteTheoG/GIMBAL/releases/latest)** et télécharge `Gimbal-vX.Y.Z-windows-x64.zip`.
-2. **Extrais** le zip dans un dossier où tu peux écrire, comme `Documents` ou `D:\Jeux\Gimbal`. Évite `Program Files`, car Gimbal enregistre ses profils à côté de l'exe.
+2. **Extrais** le zip dans un dossier où tu peux écrire. Évite `Program Files`, car Gimbal enregistre ses profils à côté de l'exe.
 3. Double-clique sur **`Gimbal.exe`**. Pas besoin de Python.
 4. *Facultatif :* installe le **[pilote ViGEmBus](https://github.com/nefarius/ViGEmBus/releases)** si tu veux la manette Xbox virtuelle. Les sorties clavier et souris fonctionnent sans. Le projet ViGEmBus n'est plus maintenu, mais sa dernière version fonctionne toujours sous Windows 10 et 11.
 
