@@ -32,6 +32,8 @@ Tools like Joy2Key or Joystick Gremlin can do this too, but they take a while to
 - 🎯 **Click "Detect", move the control**: no need to know axis or button numbers.
 - ⌨️ **Keyboard and mouse output**: any key, mouse buttons, mouse wheel, and mouse movement from an axis. Keys are sent as scancodes, so games that read raw input accept them.
 - 🎮 **Virtual Xbox 360 controller**: map axes to the analog sticks and triggers and buttons to A/B/X/Y, bumpers or the D-pad. The game sees a real gamepad.
+- 🔗 **Combos and multi-outputs**: hold several HOTAS controls together to trigger a binding (even across two sticks), and send several buttons or keys at once from a single press (e.g. **RT + LT**, **Ctrl + C**).
+- 🏷️ **Named bindings**: call a binding "Jump" or "Boost" and see it in the list and on the HOTAS view.
 - 🎚️ **Per-binding options**: invert, deadzone, throttle (full-range) axes, trigger threshold for using an axis as a button, toggle mode, mouse speed.
 - 👀 **Live gamepad view**: an Xbox controller on the main screen shows exactly what the game receives (buttons, sticks, triggers) and which keys are being sent. Great for checking a binding, or for showing your inputs on stream.
 - 🖼️ **HOTAS view**: load a picture of your HOTAS, drop labels on each physical button, and see at a glance what everything does. Labels light up when you press the control. Keep it on a second screen while you play.
@@ -77,9 +79,10 @@ Then double-click **`gimbal.pyw`**. The dependencies go into a `libs` folder nex
 1. **Plug in your HOTAS.** It shows up under *Live inputs* at the top, with live axis gauges, hat directions and pressed buttons.
 2. In the **Bindings** tab, click **＋ Add**.
 3. Click **Detect**, then press the button or move the axis you want to use.
-4. Choose an **Output type** and a **Target**: a key (click *Capture a key* and press it), a gamepad button or axis, or mouse movement.
-5. Click **OK**. Your binding is active right away and saved in the profile.
-6. Launch your game. While a binding is in use, its row turns green, and the **virtual gamepad** panel on the right shows what the game receives.
+4. *Optional:* give the binding a **Name** (for example "Jump").
+5. Choose an **Output type** and a **Target**: a key (click *Capture a key* and press it), a gamepad button or axis, or mouse movement.
+6. Click **OK**. Your binding is active right away and saved in the profile.
+7. Launch your game. While a binding is in use, its row turns green, and the **virtual gamepad** panel on the right shows what the game receives.
 
 Use the big **ENABLED / DISABLED** button in the header to pause Gimbal at any time. Pausing releases every key and unplugs the virtual controller.
 
@@ -108,6 +111,19 @@ Axes can drive **buttons** too. Push an axis past a threshold and it acts like a
 | **Speed** | Mouse movement | Pixels per second at full deflection. |
 
 Several bindings can target the same output; their values are added. One control can also have several bindings, for example stick forward → `W` and stick back → `S`.
+
+### Combos and simultaneous outputs
+
+<p align="center">
+  <img src="docs/screenshots/dialog-combo.png" width="560" alt="Binding with two simultaneous outputs">
+</p>
+
+- **Simultaneous outputs.** Click **＋ Add a simultaneous output** to send several gamepad buttons or keys from one press. Example for *No Man's Sky*, where jumping needs **RT + LT**: one HOTAS button → `RT` + `LT`. Keyboard shortcuts work too (`LCTRL` + `C`): modifiers are pressed first and released last, so the game receives a proper shortcut.
+- **HOTAS combos.** Click **＋ Combo: add a control to hold** and press another control. The binding only fires while **all** its controls are held, even if they're on two different devices.
+- **Combos win over simpler bindings.** If `B1` alone does Y and `B1 + B2` does X, pressing the combo sends **only X**, like a Shift key. Use this to build extra "layers" of commands on the same buttons.
+- On an axis binding, combo controls act as a **lock**: the axis only works while they're held.
+
+Combos and simultaneous outputs can be mixed freely, for example two HOTAS buttons → `RT` + `LT`.
 
 ## HOTAS view
 

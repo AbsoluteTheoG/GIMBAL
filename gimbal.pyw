@@ -20,7 +20,7 @@ from pathlib import Path
 from tkinter import filedialog, messagebox, simpledialog, ttk
 
 APP_NAME = "Gimbal"  # aussi le titre de fenêtre cherché par focus_running_instance
-APP_VERSION = "1.1.0"
+APP_VERSION = "1.2.0"
 # Version .exe (PyInstaller) : profils et réglages à côté de Gimbal.exe, pas dans le dossier temporaire.
 APP_DIR = Path(sys.executable).parent if getattr(sys, "frozen", False) else Path(__file__).resolve().parent
 LOG_FILE = APP_DIR / "gimbal_error.log"
@@ -83,6 +83,10 @@ STRINGS = {
         "no_device": "Aucun joystick détecté. Branche ton HOTAS.", "buttons": "Boutons",
         "settings": "Réglages", "theme": "Thème", "theme_system": "Système", "theme_light": "Clair",
         "theme_dark": "Sombre", "language": "Langue", "binds_count": "{n} binds",
+        "dlg_name": "Nom", "dlg_name_hint": "facultatif, ex. « Saut »", "col_name": "Nom",
+        "dlg_add_control": "＋ Combo : ajouter un contrôle à maintenir",
+        "dlg_add_output": "＋ Ajouter une sortie simultanée",
+        "dlg_combo_hint": "Combo : tous les contrôles doivent être actionnés ensemble.",
         "virtual_pad": "Manette virtuelle", "pad_keys": "Clavier / souris envoyés", "pad_paused": "Mapping en pause",
         "pad_unused": "Aucun bind manette dans ce profil : la manette virtuelle n'est pas branchée.",
     },
@@ -140,6 +144,10 @@ STRINGS = {
         "no_device": "No joystick detected. Plug in your HOTAS.", "buttons": "Buttons",
         "settings": "Settings", "theme": "Theme", "theme_system": "System", "theme_light": "Light",
         "theme_dark": "Dark", "language": "Language", "binds_count": "{n} bindings",
+        "dlg_name": "Name", "dlg_name_hint": "optional, e.g. “Jump”", "col_name": "Name",
+        "dlg_add_control": "＋ Combo: add a control to hold",
+        "dlg_add_output": "＋ Add a simultaneous output",
+        "dlg_combo_hint": "Combo: all controls must be held together.",
         "virtual_pad": "Virtual gamepad", "pad_keys": "Keyboard / mouse sent", "pad_paused": "Mapping paused",
         "pad_unused": "No gamepad bindings in this profile: the virtual controller isn't plugged in.",
     },
@@ -249,6 +257,7 @@ VK.update({f"NUM{i}": 0x60 + i for i in range(10)})
 VK.update({f"F{i}": 0x6F + i for i in range(1, 25)})
 VK_NAMES = {v: k for k, v in VK.items()}
 
+MODIFIER_KEYS = {"LSHIFT", "RSHIFT", "LCTRL", "RCTRL", "LALT", "RALT", "LWIN", "RWIN"}
 MOUSE_BUTTONS = {  # nom -> (flag appui, flag relâche, mouseData)
     "MOUSE1": (0x0002, 0x0004, 0), "MOUSE2": (0x0008, 0x0010, 0), "MOUSE3": (0x0020, 0x0040, 0),
     "MOUSE4": (0x0080, 0x0100, 1), "MOUSE5": (0x0080, 0x0100, 2),
@@ -321,7 +330,9 @@ def xusb_button(name):
 # {"src": {"dev": nom, "type": "button"|"hat"|"axis", "idx": int,
 #          "dir": "up"/"down"/"left"/"right" (hat) ou 1/-1 (axe), "centered": bool (axe)},
 #  "out": {"type": "key"|"pad_button"|"pad_axis"|"mouse", "target": str, "speed": px/s (souris)},
-#  "invert": bool, "deadzone": float, "threshold": float, "mode": "hold"|"toggle"}
+#  "invert": bool, "deadzone": float, "threshold": float, "mode": "hold"|"toggle",
+#  "name": str (facultatif), "with": [src, …] (combo : contrôles à maintenir en plus),
+#  "extra": [{"type": "key"|"pad_button", "target": str}, …] (sorties simultanées, binds numériques)}
 #
 # Un axe vers une sortie analogique donne une valeur continue ; vers une sortie
 # numérique (touche, bouton), il agit comme un bouton dans le sens "dir" au-delà du seuil.
@@ -386,6 +397,35 @@ def describe_out(out):
     return tr("desc_" + out["type"]) + " " + target_label(out["type"], out["target"])
 
 
+def sources(b):
+    """Contrôles HOTAS d'un bind : le principal, puis ceux du combo (tous requis)."""
+    return [b["src"]] + b.get("with", [])
+
+
+def outputs(b):
+    """Sorties d'un bind : la principale, puis les sorties simultanées."""
+    return [b["out"]] + b.get("extra", [])
+
+
+def uses_pad(bindings):
+    return any(o["type"] in ("pad_button", "pad_axis") for b in bindings for o in outputs(b))
+
+
+def describe_sources(b, analog):
+    text = describe_src(b["src"], analog)
+    for s in b.get("with", []):
+        what = describe_src(s, False)
+        text += " + " + (what.split(" · ", 1)[1] if s["dev"] == b["src"]["dev"] else what)
+    return text
+
+
+def describe_outputs(b):
+    text = describe_out(b["out"])
+    for e in b.get("extra", []):
+        text += " + " + (target_label(e["type"], e["target"]) if e["type"] == b["out"]["type"] else describe_out(e))
+    return text
+
+
 def describe_opts(b):
     is_axis = b["src"]["type"] == "axis"
     opts = []
@@ -439,6 +479,8 @@ def short_devices(names):
 def short_out(b):
     kind = b["out"]["type"]
     text = tr("short_" + kind) + " " + target_label(kind, b["out"]["target"])
+    for e in b.get("extra", []):
+        text += " + " + (e["target"] if e["type"] == kind else tr("short_" + e["type"]) + " " + e["target"])
     return text + " " + tr("short_toggle") if b.get("mode") == "toggle" else text
 
 
@@ -465,6 +507,12 @@ def digital_value(b, st):
         comp, val = HAT_DIRS[s["dir"]]
         return st["hats"][idx][comp] == val
     return _axis(st, idx) * s["dir"] >= b.get("threshold", 0.5)
+
+
+def source_on(src, devs, threshold=0.5):
+    """Un contrôle (de n'importe quel périphérique) est-il actionné, au sens d'un bouton ?"""
+    st = devs.get(src["dev"])
+    return st is not None and bool(digital_value({"src": src, "threshold": threshold}, st))
 
 
 def analog_value(b, st):
@@ -543,7 +591,7 @@ class Engine(threading.Thread):
             if pending is not None:
                 self._release_all(close_pad=False)
                 self._bindings = pending
-                self._pad_needed = any(b["out"]["type"] in ("pad_button", "pad_axis") for b in pending)
+                self._pad_needed = uses_pad(pending)
                 self._pad_failed = False
             devs = self._read(joys)
             self.snapshot = devs
@@ -582,21 +630,29 @@ class Engine(threading.Thread):
         keys, pad_buttons, active = set(), set(), set()
         axes = dict.fromkeys(PAD_AXES, 0.0)
         mouse = [0.0, 0.0]
+        pressed = {}  # binds numériques déclenchés : index -> contrôles requis
         for i, b in enumerate(self._bindings):
             st = devs.get(b["src"]["dev"])
             if st is None:
                 continue
+            # Combo : les contrôles en plus doivent être maintenus (pour un axe, ils servent de verrou)
+            combo = all(source_on(s, devs, b.get("threshold", 0.5)) for s in b.get("with", ()))
             kind, target = b["out"]["type"], b["out"]["target"]
             if kind in ANALOG_OUTS:
-                v = analog_value(b, st)
+                v = analog_value(b, st) if combo else 0.0
                 if v:
                     active.add(i)
                 if kind == "pad_axis":
                     axes[target] += v
                 else:
                     mouse[0 if target == "X" else 1] += v * b["out"].get("speed", 800) * dt
+            elif combo and digital_value(b, st):
+                pressed[i] = frozenset((input_key(s), s.get("dir")) for s in sources(b))
+        for i, b in enumerate(self._bindings):
+            if b["out"]["type"] in ANALOG_OUTS or b["src"]["dev"] not in devs:
                 continue
-            on = digital_value(b, st)
+            # Un combo déclenché masque les binds plus simples qu'il contient : B1 + B2 l'emporte sur B1 seul
+            on = i in pressed and not any(pressed[i] < other for other in pressed.values())
             if b.get("mode") == "toggle":
                 if on and not b["_prev"]:
                     b["_toggled"] = not b["_toggled"]
@@ -604,12 +660,14 @@ class Engine(threading.Thread):
                 on = b["_toggled"]
             if on:
                 active.add(i)
-                (keys if kind == "key" else pad_buttons).add(target)
+                for out in outputs(b):  # sortie principale + sorties simultanées (ex. RT + LT)
+                    (keys if out["type"] == "key" else pad_buttons).add(out["target"])
         self.active = frozenset(active)
 
-        for k in keys - self._keys_down:
+        # Modificateurs enfoncés en premier et relâchés en dernier : Ctrl + C arrive bien comme Ctrl + C
+        for k in sorted(keys - self._keys_down, key=lambda k: k not in MODIFIER_KEYS):
             send_key(k, up=False)
-        for k in self._keys_down - keys:
+        for k in sorted(self._keys_down - keys, key=lambda k: k in MODIFIER_KEYS):
             send_key(k, up=True)
         self._keys_down = keys
 
@@ -759,41 +817,66 @@ class BindingDialog(tk.Toplevel):
             b["src"] = copy.deepcopy(src)
             b["invert"] = src["type"] == "axis" and src["dir"] < 0
         self.src = b.get("src")
+        self.with_srcs = list(b.get("with", []))  # combo : contrôles à maintenir en plus
+        self.extra_rows = []                       # sorties simultanées
+        self._detecting = None
+        self._capture_target = None
         out = b["out"]
         self.title(tr("dlg_edit") if binding else tr("dlg_new"))
         self.transient(app.root)
         self.resizable(False, False)
         set_titlebar(self, app.dark)
+        bold = (FONT, 10, "bold")
 
         f = ttk.Frame(self, padding=18)
         f.pack(fill="both", expand=True)
 
-        ttk.Label(f, text=tr("dlg_control"), font=(FONT, 10, "bold")).grid(row=0, column=0, sticky="w", pady=6)
-        self.src_var = tk.StringVar()
-        ttk.Label(f, textvariable=self.src_var, width=46).grid(row=0, column=1, sticky="w", padx=10)
-        self.detect_btn = ttk.Button(f, text=tr("dlg_detect"), command=self._detect)
-        self.detect_btn.grid(row=0, column=2, sticky="ew")
+        ttk.Label(f, text=tr("dlg_name"), font=bold).grid(row=0, column=0, sticky="w", pady=6)
+        self.name_var = tk.StringVar(value=b.get("name", ""))
+        ttk.Entry(f, textvariable=self.name_var, width=34).grid(row=0, column=1, sticky="w", padx=10)
+        ttk.Label(f, text=tr("dlg_name_hint"), style="Muted.TLabel").grid(row=0, column=2, sticky="w")
 
-        ttk.Label(f, text=tr("dlg_out_type"), font=(FONT, 10, "bold")).grid(row=1, column=0, sticky="w", pady=6)
+        ttk.Separator(f).grid(row=1, column=0, columnspan=3, sticky="ew", pady=8)
+
+        # Entrée : contrôle principal + contrôles du combo
+        ttk.Label(f, text=tr("dlg_control"), font=bold).grid(row=2, column=0, sticky="w", pady=6)
+        self.src_var = tk.StringVar()
+        ttk.Label(f, textvariable=self.src_var, width=46).grid(row=2, column=1, sticky="w", padx=10)
+        self.detect_btn = ttk.Button(f, text=tr("dlg_detect"), command=lambda: self._detect("main"))
+        self.detect_btn.grid(row=2, column=2, sticky="ew")
+        self.with_frame = ttk.Frame(f)
+        self.with_frame.grid(row=3, column=1, columnspan=2, sticky="ew", padx=10)
+        self.add_with_btn = ttk.Button(f, text=tr("dlg_add_control"), command=lambda: self._detect("with"))
+        self.add_with_btn.grid(row=4, column=1, sticky="w", padx=10, pady=(2, 0))
+
+        ttk.Separator(f).grid(row=5, column=0, columnspan=3, sticky="ew", pady=8)
+
+        # Sortie : principale + sorties simultanées
+        ttk.Label(f, text=tr("dlg_out_type"), font=bold).grid(row=6, column=0, sticky="w", pady=6)
         self.type_var = tk.StringVar(value=tr("out_" + out["type"]))
         type_cb = ttk.Combobox(f, textvariable=self.type_var, values=[tr("out_" + k) for k in OUT_KINDS],
                                state="readonly", width=32)
-        type_cb.grid(row=1, column=1, sticky="w", padx=10)
+        type_cb.grid(row=6, column=1, sticky="w", padx=10)
         type_cb.bind("<<ComboboxSelected>>", lambda e: self._refresh())
 
-        ttk.Label(f, text=tr("dlg_target"), font=(FONT, 10, "bold")).grid(row=2, column=0, sticky="w", pady=6)
+        ttk.Label(f, text=tr("dlg_target"), font=bold).grid(row=7, column=0, sticky="w", pady=6)
         self.target_var = tk.StringVar(value=target_label(out["type"], out["target"]))
         self.target_cb = ttk.Combobox(f, textvariable=self.target_var, state="readonly", width=32)
-        self.target_cb.grid(row=2, column=1, sticky="w", padx=10)
-        self.capture_btn = ttk.Button(f, text=tr("dlg_capture"), command=self._capture)
-        self.capture_btn.grid(row=2, column=2, sticky="ew")
+        self.target_cb.grid(row=7, column=1, sticky="w", padx=10)
+        self.capture_btn = ttk.Button(f, text=tr("dlg_capture"),
+                                      command=lambda: self._capture(self.target_var, self.capture_btn))
+        self.capture_btn.grid(row=7, column=2, sticky="ew")
+        self.extra_frame = ttk.Frame(f)
+        self.extra_frame.grid(row=8, column=1, columnspan=2, sticky="ew", padx=10)
+        self.add_extra_btn = ttk.Button(f, text=tr("dlg_add_output"), command=self._add_extra)
+        self.add_extra_btn.grid(row=9, column=1, sticky="w", padx=10, pady=(2, 0))
 
         self.hint_var = tk.StringVar()
         ttk.Label(f, textvariable=self.hint_var, foreground=app.palette["muted"],
-                  wraplength=int(600 * app.scale)).grid(row=3, column=0, columnspan=3, sticky="w", pady=(8, 0))
+                  wraplength=int(620 * app.scale)).grid(row=10, column=0, columnspan=3, sticky="w", pady=(10, 0))
 
         opts = ttk.LabelFrame(f, text=tr("dlg_options"), padding=12)
-        opts.grid(row=4, column=0, columnspan=3, sticky="ew", pady=(14, 0))
+        opts.grid(row=11, column=0, columnspan=3, sticky="ew", pady=(14, 0))
         self.invert_var = tk.BooleanVar(value=b.get("invert", False))
         self.centered_var = tk.BooleanVar(value=(self.src or {}).get("centered", True))
         self.dz_var = tk.StringVar(value=str(b.get("deadzone", 0.05)))
@@ -817,9 +900,12 @@ class BindingDialog(tk.Toplevel):
         }
 
         btns = ttk.Frame(f)
-        btns.grid(row=5, column=0, columnspan=3, sticky="e", pady=(16, 0))
+        btns.grid(row=12, column=0, columnspan=3, sticky="e", pady=(16, 0))
         ttk.Button(btns, text=tr("cancel"), command=self.destroy).pack(side="right")
         ttk.Button(btns, text=tr("ok"), style="Accent.TButton", command=self._ok).pack(side="right", padx=8)
+
+        for e in b.get("extra", []):
+            self._add_extra(e["type"], e["target"])
 
     def show(self):
         self._refresh()
@@ -849,32 +935,94 @@ class BindingDialog(tk.Toplevel):
             self.capture_btn.grid()
         else:
             self.capture_btn.grid_remove()
+        # Sorties simultanées : seulement pour une sortie de type bouton / touche
+        for w in (self.extra_frame, self.add_extra_btn):
+            if analog:
+                w.grid_remove()
+            else:
+                w.grid()
+        combo_axis = any(s["type"] == "axis" for s in self.with_srcs)
         visible = {"invert": analog, "centered": analog and is_axis, "deadzone": analog and is_axis,
-                   "speed": kind == "mouse", "threshold": not analog and is_axis, "toggle": not analog}
+                   "speed": kind == "mouse", "threshold": (not analog and is_axis) or combo_axis,
+                   "toggle": not analog}
         for w in self.opt_widgets.values():
             w.pack_forget()
         for name, w in self.opt_widgets.items():
             if visible[name]:
                 w.pack(anchor="w", pady=3)
-        self.src_var.set(describe_src(self.src, analog) if self.src else tr("dlg_src_placeholder"))
-        self.hint_var.set(tr("dlg_hint_analog") if analog else tr("dlg_hint_digital"))
+        if self._detecting != "main":
+            self.src_var.set(describe_src(self.src, analog) if self.src else tr("dlg_src_placeholder"))
+        self._render_with()
+        hint = tr("dlg_hint_analog") if analog else tr("dlg_hint_digital")
+        self.hint_var.set(hint + ("  " + tr("dlg_combo_hint") if self.with_srcs else ""))
 
-    def _capture(self):
-        self.capture_btn.configure(text=tr("dlg_press_key"))
+    def _render_with(self):
+        for w in self.with_frame.winfo_children():
+            w.destroy()
+        for i, s in enumerate(self.with_srcs):
+            ttk.Label(self.with_frame, text="+  " + describe_src(s, False)).grid(row=i, column=0, sticky="w", pady=2)
+            ttk.Button(self.with_frame, text="✕", width=3,
+                       command=lambda i=i: (self.with_srcs.pop(i), self._refresh())).grid(row=i, column=1, padx=8)
+        if self._detecting == "with":
+            ttk.Label(self.with_frame, text="+  " + tr("dlg_detecting"), style="Muted.TLabel").grid(
+                row=len(self.with_srcs), column=0, sticky="w", pady=2)
+
+    def _add_extra(self, kind="pad_button", target=None):
+        """Ajoute une ligne « sortie simultanée » : type (touche / bouton manette) + cible."""
+        row = ttk.Frame(self.extra_frame)
+        row.pack(fill="x", pady=2)
+        type_var = tk.StringVar(value=tr("out_" + kind))
+        target_var = tk.StringVar(value=target_label(kind, target or DEFAULT_TARGET[kind]))
+        ttk.Label(row, text="+").pack(side="left")
+        type_cb = ttk.Combobox(row, textvariable=type_var, state="readonly", width=20,
+                               values=[tr("out_key"), tr("out_pad_button")])
+        type_cb.pack(side="left", padx=(6, 6))
+        target_cb = ttk.Combobox(row, textvariable=target_var, state="readonly", width=22)
+        target_cb.pack(side="left")
+        cap = ttk.Button(row, text="⌨", width=3, command=lambda: self._capture(target_var, cap))
+        entry = {"frame": row, "type": type_var, "target": target_var}
+
+        def on_type(event=None):
+            k = "key" if type_var.get() == tr("out_key") else "pad_button"
+            target_cb["values"] = targets(k)
+            if target_var.get() not in target_cb["values"]:
+                target_var.set(target_label(k, DEFAULT_TARGET[k]))
+            if k == "key":
+                cap.pack(side="left", padx=(6, 0), before=remove)
+            else:
+                cap.pack_forget()
+
+        remove = ttk.Button(row, text="✕", width=3,
+                            command=lambda: (self.extra_rows.remove(entry), row.destroy()))
+        remove.pack(side="left", padx=(6, 0))
+        type_cb.bind("<<ComboboxSelected>>", on_type)
+        on_type()
+        self.extra_rows.append(entry)
+
+    def _capture(self, var, button):
+        self._capture_target = (var, button, button.cget("text"))
+        button.configure(text=tr("dlg_press_key"))
         self.bind("<KeyPress>", self._on_key)
         self.focus_set()  # focus sur la fenêtre elle-même : Espace/Tab n'actionnent pas un bouton
 
     def _on_key(self, event):
         name = key_from_event(event)
-        if name:
-            self.target_var.set(target_label("key", name))
+        if name and self._capture_target:
+            var, button, text = self._capture_target
+            var.set(target_label("key", name))
+            button.configure(text=text)
             self.unbind("<KeyPress>")
-            self.capture_btn.configure(text=tr("dlg_capture"))
+            self._capture_target = None
         return "break"
 
-    def _detect(self):
-        self.detect_btn.state(["disabled"])
-        self.src_var.set(tr("dlg_detecting"))
+    def _detect(self, which):
+        """Détecte le contrôle principal (« main ») ou un contrôle de combo en plus (« with »)."""
+        self._detecting = which
+        for btn in (self.detect_btn, self.add_with_btn):
+            btn.state(["disabled"])
+        if which == "main":
+            self.src_var.set(tr("dlg_detecting"))
+        self._render_with()
         self.after(30, self._detect_poll, self.app.engine.snapshot, time.monotonic() + 10)
 
     def _detect_poll(self, base, deadline):
@@ -898,12 +1046,18 @@ class BindingDialog(tk.Toplevel):
             if found:
                 break
         if found or time.monotonic() > deadline:
-            self.detect_btn.state(["!disabled"])
-            if found:
+            which, self._detecting = self._detecting, None
+            for btn in (self.detect_btn, self.add_with_btn):
+                btn.state(["!disabled"])
+            if found and which == "main":
                 self.src = found
                 if found["type"] == "axis":
                     self.invert_var.set(found["dir"] < 0)
                     self.centered_var.set(found["centered"])
+            elif found:
+                known = {input_key(s) for s in ([self.src] if self.src else []) + self.with_srcs}
+                if input_key(found) not in known:
+                    self.with_srcs.append(found)
             self._refresh()
             return
         self.after(30, self._detect_poll, base, deadline)
@@ -922,8 +1076,12 @@ class BindingDialog(tk.Toplevel):
         kind = self._out_type()
         src = dict(self.src)
         b = {"src": src, "out": {"type": kind, "target": self.target_var.get().split(" ")[0]}}
+        if self.name_var.get().strip():
+            b["name"] = self.name_var.get().strip()
         if src["type"] == "axis":
             src["centered"] = self.centered_var.get()
+        if self.with_srcs:
+            b["with"] = [dict(s) for s in self.with_srcs if input_key(s) != input_key(src)]
         if kind in ANALOG_OUTS:
             b["invert"] = self.invert_var.get()
             b["deadzone"] = self._num(self.dz_var, 0.05, 0.0, 0.5)
@@ -931,8 +1089,16 @@ class BindingDialog(tk.Toplevel):
                 b["out"]["speed"] = self._num(self.speed_var, 800, 1, 20000)
         else:
             b["mode"] = "toggle" if self.toggle_var.get() else "hold"
-            if src["type"] == "axis":
-                b["threshold"] = self._num(self.thr_var, 0.5, 0.05, 0.99)
+            extra = []
+            for row in self.extra_rows:
+                out = {"type": "key" if row["type"].get() == tr("out_key") else "pad_button",
+                       "target": row["target"].get().split(" ")[0]}
+                if out != b["out"] and out not in extra:
+                    extra.append(out)
+            if extra:
+                b["extra"] = extra
+        if src["type"] == "axis" and kind not in ANALOG_OUTS or any(s["type"] == "axis" for s in b.get("with", [])):
+            b["threshold"] = self._num(self.thr_var, 0.5, 0.05, 0.99)
         self.result = b
         self.destroy()
 
@@ -1026,7 +1192,7 @@ class HotasView(ttk.Frame):
         return True
 
     def _add_bound(self):
-        added = [self._add_label(copy.deepcopy(b["src"])) for b in self.app.bindings]
+        added = [self._add_label(copy.deepcopy(s)) for b in self.app.bindings for s in sources(b)]
         if any(added):
             self.app.save_profile()
             if not self.editing:
@@ -1060,16 +1226,22 @@ class HotasView(ttk.Frame):
     def _lines(self, lab):
         src = lab["src"]
         lines = [lab["caption"]] if lab.get("caption") else []
-        binds = [b for b in self.app.bindings if input_key(b["src"]) == input_key(src)]
-        dev = short_devices([lab["src"]["dev"] for lab in self.layout["labels"]])[src["dev"]]
-        name = f"{dev} · {short_input(src)}" if dev else short_input(src)
+        key = input_key(src)
+        binds = [b for b in self.app.bindings if key in {input_key(s) for s in sources(b)}]  # combos compris
+        devs = short_devices([lab["src"]["dev"] for lab in self.layout["labels"]] + [src["dev"]])
+
+        def control(s, digital):
+            text = f"{devs[s['dev']]} · {short_input(s)}" if devs[s["dev"]] else short_input(s)
+            if s["type"] == "axis" and digital:
+                text += " +" if s["dir"] > 0 else " −"
+            return text
+
         for b in binds:
-            half = ""
-            if src["type"] == "axis" and b["out"]["type"] not in ANALOG_OUTS:
-                half = " +" if b["src"]["dir"] > 0 else " −"
-            lines.append(f"{name}{half} → {short_out(b)}")
+            digital = b["out"]["type"] not in ANALOG_OUTS
+            controls = " + ".join(control(s, digital or s is not b["src"]) for s in sources(b))
+            lines.append(f"{controls} → {b.get('name') or short_out(b)}")  # le nom du bind, s'il en a un
         if not binds:
-            lines.append(f"{name} · {tr('label_free')}")
+            lines.append(f"{control(src, False)} · {tr('label_free')}")
         return lines, bool(binds)
 
     def _fill(self, i, bound):
@@ -1225,7 +1397,8 @@ class HotasView(ttk.Frame):
         if i is None:
             return
         src = self.layout["labels"][i]["src"]
-        idx = next((j for j, b in enumerate(self.app.bindings) if input_key(b["src"]) == input_key(src)), None)
+        idx = next((j for j, b in enumerate(self.app.bindings)
+                    if input_key(src) in {input_key(s) for s in sources(b)}), None)
         if idx is None:
             self.app.add_bind(src)
         else:
@@ -1238,8 +1411,9 @@ class HotasView(ttk.Frame):
         lab = self.layout["labels"][i]
         menu = tk.Menu(self, tearoff=False)
         for j, b in enumerate(self.app.bindings):
-            if input_key(b["src"]) == input_key(lab["src"]):
-                menu.add_command(label=tr("menu_edit", out=short_out(b)), command=lambda j=j: self.app.edit_bind(j))
+            if input_key(lab["src"]) in {input_key(s) for s in sources(b)}:
+                menu.add_command(label=tr("menu_edit", out=b.get("name") or short_out(b)),
+                                 command=lambda j=j: self.app.edit_bind(j))
         menu.add_command(label=tr("menu_add"), command=lambda: self.app.add_bind(lab["src"]))
         menu.add_separator()
         menu.add_command(label=tr("menu_rename"), command=lambda: self._rename(i))
@@ -1500,8 +1674,9 @@ class App:
             ttk.Button(tools, text=text, command=cmd).pack(side="left", padx=(8, 0))
         table = ttk.Frame(binds_tab)
         table.pack(fill="both", expand=True)
-        self.tree = ttk.Treeview(table, columns=("src", "out", "opts"), show="headings", selectmode="browse")
-        for col, text, w in (("src", tr("col_src"), 360), ("out", tr("col_out"), 300), ("opts", tr("col_opts"), 220)):
+        self.tree = ttk.Treeview(table, columns=("name", "src", "out", "opts"), show="headings", selectmode="browse")
+        for col, text, w in (("name", tr("col_name"), 140), ("src", tr("col_src"), 300),
+                             ("out", tr("col_out"), 300), ("opts", tr("col_opts"), 170)):
             self.tree.heading(col, text=text, anchor="w")
             self.tree.column(col, width=int(w * s), anchor="w")
         self.tree.tag_configure("active", background=self.palette["row_active"])
@@ -1656,7 +1831,8 @@ class App:
         for i, b in enumerate(self.bindings):
             analog = b["out"]["type"] in ANALOG_OUTS
             self.tree.insert("", "end", iid=str(i), tags=self._row_tags(i, b),
-                             values=(describe_src(b["src"], analog), describe_out(b["out"]), describe_opts(b)))
+                             values=(b.get("name", ""), describe_sources(b, analog), describe_outputs(b),
+                                     describe_opts(b)))
 
     def _row_tags(self, i, b):
         if i in self._shown_active:
@@ -1682,8 +1858,7 @@ class App:
         if changed:
             for i, b in enumerate(self.bindings):
                 self.tree.item(str(i), tags=self._row_tags(i, b))
-        uses_pad = any(b["out"]["type"] in ("pad_button", "pad_axis") for b in self.bindings)
-        self.pad_view.update_state(self.engine.output, not self.engine.enabled, uses_pad)
+        self.pad_view.update_state(self.engine.output, not self.engine.enabled, uses_pad(self.bindings))
         code, *args = self.engine.status
         self.status_var.set(tr("status_" + code, msg=args[0]) if args else tr("status_" + code))
         ok = code in ("kb", "pad")

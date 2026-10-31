@@ -2,6 +2,13 @@
 
 All notable changes to Gimbal are listed here. Versions follow [Semantic Versioning](https://semver.org/).
 
+## [1.2.0] - 2026-10-31
+
+### Added
+- **Simultaneous outputs**: one HOTAS press can send several gamepad buttons and/or keys at once (e.g. RT + LT for jumping in No Man's Sky, or Ctrl + C). Modifier keys are pressed first and released last.
+- **HOTAS combos**: a binding can require several controls held together, even across two devices. A triggered combo masks simpler bindings it contains (B1 + B2 wins over B1 alone), so you can build Shift-style layers. On axis bindings, combo controls act as a lock.
+- **Binding names**, shown in a new *Name* column, on HOTAS view labels and in the label menu.
+
 ## [1.1.0] - 2026-10-29
 
 ### Added
@@ -22,5 +29,6 @@ First public release.
 - Light / dark / system theme, English and French interface.
 - Standalone Windows build (`Gimbal.exe`), no Python required.
 
+[1.2.0]: https://github.com/AbsoluteTheoG/GIMBAL/releases/tag/v1.2.0
 [1.1.0]: https://github.com/AbsoluteTheoG/GIMBAL/releases/tag/v1.1.0
 [1.0.0]: https://github.com/AbsoluteTheoG/GIMBAL/releases/tag/v1.0.0

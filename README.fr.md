@@ -32,6 +32,8 @@ Joy2Key ou Joystick Gremlin savent aussi le faire, mais ils demandent un temps d
 - 🎯 **« Détecter », puis tu bouges le contrôle** : pas besoin de connaître les numéros d'axes ou de boutons.
 - ⌨️ **Sortie clavier et souris** : n'importe quelle touche, les boutons et la molette de la souris, et le mouvement de la souris depuis un axe. Les touches sont envoyées en scancodes, donc les jeux qui lisent les entrées brutes les acceptent.
 - 🎮 **Manette Xbox 360 virtuelle** : axes vers les sticks analogiques et les gâchettes, boutons vers A/B/X/Y, les bumpers ou la croix. Le jeu voit une vraie manette.
+- 🔗 **Combos et sorties multiples** : plusieurs contrôles du HOTAS à maintenir ensemble pour déclencher un bind (même sur deux sticks), et plusieurs boutons ou touches envoyés d'un seul appui (par exemple **RT + LT** ou **Ctrl + C**).
+- 🏷️ **Binds nommés** : appelle un bind « Saut » ou « Boost » et retrouve-le dans la liste et sur la vue HOTAS.
 - 🎚️ **Options par bind** : inversion, zone morte, axe de manette des gaz (course complète), seuil pour utiliser un axe comme bouton, mode bascule, vitesse de la souris.
 - 👀 **Manette en direct** : une manette Xbox sur l'écran principal montre exactement ce que reçoit le jeu (boutons, sticks, gâchettes) et les touches envoyées. Pratique pour vérifier un bind, ou pour montrer tes commandes en stream.
 - 🖼️ **Vue HOTAS** : charge une image de ton HOTAS, pose une étiquette sur chaque bouton physique et vois d'un coup d'œil ce que fait chaque commande. Les étiquettes s'allument quand tu actionnes le contrôle. Laisse-la sur un deuxième écran pendant que tu joues.
@@ -77,9 +79,10 @@ Double-clique ensuite sur **`gimbal.pyw`**. Les dépendances s'installent dans u
 1. **Branche ton HOTAS.** Il apparaît dans *Entrées en direct*, en haut, avec ses jauges d'axes, la direction des hats et les boutons appuyés en temps réel.
 2. Dans l'onglet **Binds**, clique sur **＋ Ajouter**.
 3. Clique sur **Détecter**, puis appuie sur le bouton ou bouge l'axe que tu veux utiliser.
-4. Choisis un **Type de sortie** et une **Cible** : une touche (clique sur *Capturer une touche* et appuie dessus), un bouton ou un axe de manette, ou le mouvement de la souris.
-5. Clique sur **OK**. Le bind est actif tout de suite et enregistré dans le profil.
-6. Lance ton jeu. Quand un bind est utilisé, sa ligne passe en vert, et la colonne **Manette virtuelle**, à droite, montre ce que reçoit le jeu.
+4. *Facultatif :* donne un **Nom** au bind (par exemple « Saut »).
+5. Choisis un **Type de sortie** et une **Cible** : une touche (clique sur *Capturer une touche* et appuie dessus), un bouton ou un axe de manette, ou le mouvement de la souris.
+6. Clique sur **OK**. Le bind est actif tout de suite et enregistré dans le profil.
+7. Lance ton jeu. Quand un bind est utilisé, sa ligne passe en vert, et la colonne **Manette virtuelle**, à droite, montre ce que reçoit le jeu.
 
 Le gros bouton **ACTIVÉ / DÉSACTIVÉ** de l'en-tête met Gimbal en pause à tout moment. La pause relâche toutes les touches et débranche la manette virtuelle.
 
@@ -108,6 +111,19 @@ Un axe peut aussi piloter un **bouton**. Poussé au-delà d'un seuil, il agit co
 | **Vitesse** | Mouvement souris | Pixels par seconde quand l'axe est à fond. |
 
 Plusieurs binds peuvent viser la même sortie ; leurs valeurs s'additionnent. Un même contrôle peut aussi porter plusieurs binds, par exemple stick vers l'avant → `Z` et vers l'arrière → `S`.
+
+### Combos et sorties simultanées
+
+<p align="center">
+  <img src="docs/screenshots/dialog-combo.png" width="560" alt="Bind avec deux sorties simultanées">
+</p>
+
+- **Sorties simultanées.** Clique sur **＋ Ajouter une sortie simultanée** pour envoyer plusieurs boutons de manette ou touches d'un seul appui. Exemple pour *No Man's Sky*, où sauter demande **RT + LT** : un bouton du HOTAS → `RT` + `LT`. Les raccourcis clavier marchent aussi (`LCTRL` + `C`) : les modificateurs sont enfoncés en premier et relâchés en dernier, pour que le jeu reçoive bien le raccourci.
+- **Combos HOTAS.** Clique sur **＋ Combo : ajouter un contrôle à maintenir**, puis actionne un autre contrôle. Le bind ne se déclenche que si **tous** ses contrôles sont maintenus, même s'ils sont sur deux périphériques différents.
+- **Un combo l'emporte sur les binds plus simples.** Si `B1` seul fait Y et que `B1 + B2` fait X, appuyer sur le combo envoie **seulement X**, comme une touche Shift. Ça permet de créer des « couches » de commandes sur les mêmes boutons.
+- Sur un bind d'axe, les contrôles du combo servent de **verrou** : l'axe n'agit que s'ils sont maintenus.
+
+Combos et sorties simultanées se combinent librement, par exemple deux boutons du HOTAS → `RT` + `LT`.
 
 ## Vue HOTAS
 
